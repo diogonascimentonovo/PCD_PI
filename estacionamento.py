@@ -1,16 +1,18 @@
-#primeiramente vamos considerar um estacionamento 20 com vagas sendo corredores A e B com 10 vagas cada.
-vagas = []
-for i in range (2):
-    corredor = []
-    for j in range(10):
-        corredor.append(0)
-    vagas.append(corredor)
-for corredor in vagas:
-    print(corredor)
-#aqui vamos definir o que vai aparecer no painel da entrada do estacionamento.
-
-if all(all(corredor == 1)):
-    disponibilidade = ('Lotado')
-else: disponibilidade = ('Há vagas')
-print('Disponibilidade')
-
+import sqlite3
+conexao = sqlite3.connect('PCDPI/estacionamento.db')
+cursor = conexao.cursor()
+cursor.execute('''CREATE TABLE IF NOT EXISTS veiculos(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    placa TEXT,
+    entrada TEXT,
+    categoria INTEGER, 
+    saida INTEGER DEFAULT 0
+               )''')
+conexao.commit()
+conexao.close()
+limite = 20
+while True:
+    cursor.execute('SELECT COUNT * FROM veiculos WHERE saida = 0')
+    ocupacao = cursor.fetchone()[0]
+    if ocupacao == limite:
+        
