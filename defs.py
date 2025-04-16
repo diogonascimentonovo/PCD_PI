@@ -7,7 +7,7 @@ def status():
         cursor.execute('SELECT COUNT * FROM veiculos WHERE saida = 0')
         ocupacao = cursor.fetchone()[0]
         if ocupacao == limite:
-            print('Estacionament ocupado')
+            print('Estacionamento ocupado')
 
 def menu():
     status()
