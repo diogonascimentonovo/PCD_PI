@@ -1,13 +1,136 @@
-from estacionamento import *
+# Essas são as bibliotecas utilizadas no projeto
+import datetime
 import sqlite3
-conexao = sqlite3.connect('PCDPI/estacionamento.db')
-cursor = conexao.cursor()
-def status():
-    while True:
-        cursor.execute('SELECT COUNT * FROM veiculos WHERE saida = 0')
-        ocupacao = cursor.fetchone()[0]
-        if ocupacao == limite:
-            print('Estacionamento ocupado')
 
-def menu():
-    status()
+# configurações do estacionamento
+capacidade = 100
+dicprecos = {
+    "precoate1h": 10,
+    "precoate2h": 15,
+    "precoate3h": 30,
+    "precoate4h": 50,
+    "precodiaria": 70
+}
+
+def criarbanco():
+    conexao = sqlite3.connect('estacionamento.db')
+    cursor = conexao.cursor()
+    # criação da tabela no banco de dados:
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS veiculos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        placa TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        entrada DATETIME,
+        saida DATETIME               
+    )
+    ''')
+    conexao.commit()
+    conexao.close()
+
+# Essa função deverá registrar o carro
+def entrada():
+    conexao = sqlite3.connect('estacionamento.db')
+    cursor = conexao.cursor()    
+    while True:
+        placa = str(input('Insira a placa do veículo: ').upper())
+        if len(placa) == 7:
+            break
+        else:
+            print('Placa inválida! Insira novamente.')
+
+    if not verificar_estacionamento(placa):
+        return
+    if not status():
+        return
+
+    while True:
+        try:
+            tipo = int(input('''Insira o tipo do veículo:
+
+    [1] Carro
+    [2] Moto
+    [3] Caminhão
+----> '''))
+            if tipo in [1, 2, 3]:
+                tipo_nome = {1: 'Carro', 2: 'Moto', 3: 'Caminhão'}[tipo]
+                break
+            else:
+                print('O tipo de veículo digitado não é válido. Insira 1, 2 ou 3.')
+        except ValueError:
+            print('Tipo de veículo inválido! Insira um número.')
+
+    horario_entrada = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    cursor.execute(
+        'INSERT INTO veiculos (placa, tipo, entrada) VALUES (?, ?, ?)',
+        (placa, tipo_nome, horario_entrada)
+    )
+    conexao.commit()
+    conexao.close()
+    hora_local = datetime.datetime.utcnow().strftime("%H:%M")
+    print(f"✅ Veículo registrado: {placa[:3]}-{placa[3:]} | Tipo: {tipo_nome}, Horário de entrada (UTC): {hora_local}")
+
+def saida():
+    placa = str(input('Insira a placa do veículo: ').upper())
+    conec = sqlite3.connect('estacionamento.db')
+    cur = conec.cursor()
+    cur.execute("SELECT * FROM veiculos WHERE placa = ? AND saida IS NULL", (placa,))
+    reg = cur.fetchone()
+
+    if reg:
+        entrada = datetime.datetime.strptime(reg[3], "%Y-%m-%d %H:%M:%S")
+        saida = datetime.datetime.utcnow()
+        tempo_total = saida - entrada
+        permanencia = int(tempo_total.total_seconds() // 3600)
+
+        if permanencia < 1:
+            preco = dicprecos["precoate1h"]
+        elif permanencia < 2:
+            preco = dicprecos["precoate2h"]
+        elif permanencia < 3:
+            preco = dicprecos["precoate3h"]
+        elif permanencia < 4:
+            preco = dicprecos["precoate4h"]
+        else:
+            preco = dicprecos["precodiaria"]
+        
+        cur.execute(
+            "UPDATE veiculos SET saida = ? WHERE placa = ? AND saida IS NULL",
+            (saida.strftime("%Y-%m-%d %H:%M:%S"), placa)
+        )
+        conec.commit()
+        conec.close()
+        print(f"✅ Saída registrada para o veículo {placa}")
+        print(f"⏱ Tempo de permanência: {permanencia} hora(s)")
+        print(f"💰 Valor a pagar: R$ {preco:.2f}")
+    else:
+        print('O veículo não foi encontrado no sistema do estacionamento')
+        conec.close()
+
+# Essa função vai ser responsável por gerar o relatório do estacionamento
+def relatorio():
+    print('\nRodando função relatório\n') 
+
+# função responsável por verificar se o carro já está estacionado para permitir que seja dada a entrada no estacionamento
+def verificar_estacionamento(placa):
+    conection = sqlite3.connect('estacionamento.db')
+    cursor = conection.cursor()
+    cursor.execute("SELECT * FROM veiculos WHERE placa = ? AND saida IS NULL", (placa,))
+    resultado = cursor.fetchone()
+    conection.close()
+    if resultado:
+        print("O veículo já está estacionado!")
+        return False  
+    else:
+        return True 
+
+def status():
+    conexao = sqlite3.connect('estacionamento.db')
+    cursor = conexao.cursor() 
+    cursor.execute("SELECT COUNT(*) FROM veiculos WHERE saida IS NULL")
+    total_estacionados = cursor.fetchone()[0]
+    conexao.close()
+    if total_estacionados >= capacidade:
+        print('🚫 Estacionamento lotado.')
+        return False
+    return True

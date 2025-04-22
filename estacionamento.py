@@ -1,19 +1,26 @@
+#import do arquivo que definimos as funções utilizadas no menu
 from defs import *
-import sqlite3
-conexao = sqlite3.connect('PCDPI/estacionamento.db')
-cursor = conexao.cursor()
-cursor.execute('''CREATE TABLE IF NOT EXISTS veiculos(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    placa TEXT,
-    entrada TEXT,
-    categoria INTEGER, 
-    saida INTEGER DEFAULT 0
-               )''')
-conexao.commit()
-conexao.close()
-limite = 20
+#Esse é o menu interativo do usuário que é integrado às funções definidas no outro arquivo
+criarbanco()
 while True:
-    cursor.execute('SELECT COUNT * FROM veiculos WHERE saida = 0')
-    ocupacao = cursor.fetchone()[0]
-    if ocupacao == limite:
-        print('Estacionament ocupado')
+    try: 
+        opcao = int(input('''
+Escolha uma opção:
+    [1] Entrada de veículo
+    [2] Saída de veículo
+    [3] Gerar relatório                                                   
+---> '''))
+
+        funcoes = {
+            1: entrada,     
+            2: saida,
+            3: relatorio
+        }
+
+        if opcao in funcoes:
+            funcoes[opcao]()
+        else:
+            print('Opção inválida, escolha 1, 2 ou 3.')
+
+    except ValueError: 
+        print('Opção inválida, insira um número inteiro!')
