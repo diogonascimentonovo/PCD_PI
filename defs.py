@@ -1,9 +1,8 @@
 # Essas são as bibliotecas utilizadas no projeto
 import datetime
 import sqlite3
-
 # configurações do estacionamento
-capacidade = 100
+capacidade = 10
 dicprecos = {
     "precoate1h": 10,
     "precoate2h": 15,
@@ -109,7 +108,34 @@ def saida():
 
 # Essa função vai ser responsável por gerar o relatório do estacionamento
 def relatorio():
-    print('\nRodando função relatório\n') 
+    conection = sqlite3.connect('estacionamento.db')
+    cursor = conection.cursor()
+    cursor.execute("SELECT * FROM veiculos WHERE saida IS NOT NULL")
+    resposta = cursor.fetchall()
+
+    if not resposta:
+        print('Não houve movimentação!')
+    else:
+        def formatar_tabela(dados, cabecalho):
+            larguras = [len(col) for col in cabecalho]
+            for linha in dados:
+                for i, item in enumerate(linha):
+                    larguras[i] = max(larguras[i], len(str(item)))
+
+            def formatar_linha(linha):
+                return "  ".join(f"{str(item):<{larguras[i]}}" for i, item in enumerate(linha))
+
+            print(formatar_linha(cabecalho))
+            print("-" * (sum(larguras) + len(larguras) * 2))
+
+            for linha in dados:
+                print(formatar_linha(linha))
+
+        formatar_tabela(resposta, ["ID", "Placa", "Tipo", "Entrada", "Saída"])
+
+    conection.close()
+
+
 
 # função responsável por verificar se o carro já está estacionado para permitir que seja dada a entrada no estacionamento
 def verificar_estacionamento(placa):
