@@ -1,5 +1,5 @@
 # Essas são as bibliotecas utilizadas no projeto
-import datetime
+from datetime import datetime, timezone, timedelta
 import sqlite3
 # configurações do estacionamento
 capacidade = 10
@@ -10,7 +10,8 @@ dicprecos = {
     "precoate4h": 50,
     "precodiaria": 70
 }
-
+fuso = timezone(timedelta(hours=-3))
+horariolocal = datetime.now(fuso)
 def criarbanco():
     conexao = sqlite3.connect('estacionamento.db')
     cursor = conexao.cursor()
@@ -32,7 +33,7 @@ def entrada():
     conexao = sqlite3.connect('estacionamento.db')
     cursor = conexao.cursor()    
     while True:
-        placa = str(input('Insira a placa do veículo: ').upper())
+        placa = (str(input('Insira a placa do veículo: ').replace(" ","")).upper())
         if len(placa) == 7:
             break
         else:
@@ -51,6 +52,7 @@ def entrada():
     [2] Moto
     [3] Caminhão
 ----> '''))
+
             if tipo in [1, 2, 3]:
                 tipo_nome = {1: 'Carro', 2: 'Moto', 3: 'Caminhão'}[tipo]
                 break
@@ -59,27 +61,31 @@ def entrada():
         except ValueError:
             print('Tipo de veículo inválido! Insira um número.')
 
-    horario_entrada = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    horario_entrada = datetime.now(fuso).strftime("%Y-%m-%d %H:%M:%S")
     cursor.execute(
         'INSERT INTO veiculos (placa, tipo, entrada) VALUES (?, ?, ?)',
         (placa, tipo_nome, horario_entrada)
     )
     conexao.commit()
     conexao.close()
-    hora_local = datetime.datetime.utcnow().strftime("%H:%M")
+    hora_local = datetime.now(fuso).strftime("%H:%M")
     print(f"✅ Veículo registrado: {placa[:3]}-{placa[3:]} | Tipo: {tipo_nome}, Horário de entrada (UTC): {hora_local}")
 
+
 def saida():
-    placa = str(input('Insira a placa do veículo: ').upper())
+    placa = str(input('Insira a placa do veículo: ').replace(" ","").upper())
     conec = sqlite3.connect('estacionamento.db')
     cur = conec.cursor()
     cur.execute("SELECT * FROM veiculos WHERE placa = ? AND saida IS NULL", (placa,))
     reg = cur.fetchone()
 
     if reg:
-        entrada = datetime.datetime.strptime(reg[3], "%Y-%m-%d %H:%M:%S")
-        saida = datetime.datetime.utcnow()
-        tempo_total = saida - entrada
+        entrada_utc = datetime.strptime(reg[3], "%Y-%m-%d %H:%M:%S")  # Entrada no formato UTC
+        entrada_local = entrada_utc.astimezone(fuso)  # Convertendo para horário local
+
+        saida_utc = datetime.utcnow().replace(tzinfo=timezone.utc)  # Garantir que a saída também tem fuso horário UTC
+
+        tempo_total = saida_utc - entrada_local  # Agora os dois têm o mesmo fuso horário
         permanencia = int(tempo_total.total_seconds() // 3600)
 
         if permanencia < 1:
@@ -95,7 +101,7 @@ def saida():
         
         cur.execute(
             "UPDATE veiculos SET saida = ? WHERE placa = ? AND saida IS NULL",
-            (saida.strftime("%Y-%m-%d %H:%M:%S"), placa)
+            (saida_utc.strftime("%Y-%m-%d %H:%M:%S"), placa)
         )
         conec.commit()
         conec.close()
